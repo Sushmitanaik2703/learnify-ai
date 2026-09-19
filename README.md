@@ -2,7 +2,7 @@
 
 ![LearnLoop Dashboard Preview](https://raw.githubusercontent.com/Sushmitanaik2703/learnify-ai/main/frontend/public/preview.png)
 
-## 🎓 Project Overview
+## Project Overview
 LearnLoop AI (also known as **Learnify AI**) is an AI‑powered, full‑stack educational platform that helps students turn raw study material into interactive learning experiences. It supports:
 - PDF and text uploads
 - Automatic topic extraction with **PyMuPDF** and AI
@@ -13,7 +13,7 @@ LearnLoop AI (also known as **Learnify AI**) is an AI‑powered, full‑stack ed
 
 > **Goal:** Provide a clean, responsive SaaS‑style dashboard that feels professional for a college hackathon demo while preserving all existing functionality.
 
-## ✨ Key Features
+## Key Features
 - **Subject Management** – Create, edit, and delete subjects with a colour tag for quick visual identification.
 - **Material Upload** – Upload PDFs; the backend extracts text and creates topics.
 - **Flashcards & Quizzes** – Auto‑generated per‑topic flashcards and MCQ quizzes with scoring.
@@ -22,7 +22,7 @@ LearnLoop AI (also known as **Learnify AI**) is an AI‑powered, full‑stack ed
 - **Theme Selector** – Light, dark, or system‑default themes persisted via `localStorage`.
 - **Responsive Design** – Glass‑card UI, subtle micro‑animations, and mobile‑friendly layouts.
 
-## 🛠️ Tech Stack
+## Tech Stack
 | Layer | Technology |
 |-------|------------|
 | Frontend | React, Vite, JavaScript, vanilla CSS (custom design system) |
@@ -32,7 +32,7 @@ LearnLoop AI (also known as **Learnify AI**) is an AI‑powered, full‑stack ed
 | PDF Parsing | PyMuPDF |
 | State Management | Context API (`AppContext`) |
 
-## 🚀 Getting Started
+## Getting Started
 ### Prerequisites
 - **Node.js** (>=18) and **npm**
 - **Python 3.11+** with `venv`
@@ -67,7 +67,7 @@ npm run build   # creates ./dist
 # docker build -t learnloop-backend .
 ```
 
-## 📂 Project Structure
+## Project Structure
 ```
 LearnLoop/
 ├─ frontend/          # React + Vite UI
@@ -86,13 +86,13 @@ LearnLoop/
 └─ IMPLEMENTATION_PLAN.md
 ```
 
-## 🎨 UI/UX Highlights
+## UI/UX Highlights
 - **Glass‑card layout** with subtle gradients and shadows.
 - **Colour tags** on subject cards – a small dot next to the subject name reflects the user‑chosen colour.
 - **Dynamic streak calendar** that never marks future dates as completed.
 - **Micro‑animations** on button hovers and progress updates for a premium feel.
 
-## 🐞 Known Issues & Future Work
+## Known Issues & Future Work
 - Add unit tests for backend API endpoints.
 - Persist backend data to a real DB (currently using SQLite & localStorage).
 - Enhance AI model prompts for better concept extraction.
