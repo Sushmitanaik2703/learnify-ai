@@ -6,32 +6,31 @@ import {
   ArrowLeft, 
   ArrowRight, 
   CheckCircle2, 
-  AlertCircle,
   Filter,
-  RefreshCw,
-  Plus
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { generateFlashcards } from '../api';
 
 export default function FlashcardsPage() {
-  const { flashcards, updateCardRating, addFlashcards, topics, notes } = useApp();
+  const { flashcards, subjects, notes, topics, updateCardRating, addFlashcards } = useApp();
 
-  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' or 'REVISION' (Difficult/Medium)
-  const [selectedTopic, setSelectedTopic] = useState('');
+  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' or 'REVISION'
+  const [selectedSubjectId, setSelectedSubjectId] = useState('ALL');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [genMsg, setGenMsg] = useState(null);
 
-  // Filter flashcards by mode and topic
+  // Filter flashcards by subject and mode
   const activeDeck = flashcards.filter((card) => {
-    const matchesTopic = !selectedTopic || card.topic === selectedTopic;
+    const matchesSubject = selectedSubjectId === 'ALL' || card.subject_id === selectedSubjectId;
     if (filterMode === 'REVISION') {
-      return matchesTopic && (card.rating === 'Difficult' || card.rating === 'Medium');
+      return matchesSubject && (card.rating === 'Difficult' || card.rating === 'Medium');
     }
-    return matchesTopic;
+    return matchesSubject;
   });
 
   const handleFlip = () => {
@@ -58,11 +57,14 @@ export default function FlashcardsPage() {
   const handleGenerateDeck = async () => {
     setIsGenerating(true);
     setGenMsg(null);
-    const activeNoteContent = notes.length > 0 ? notes[0].content : '';
+    const targetSubject = subjects.find(s => s.id === selectedSubjectId);
+    const subjName = targetSubject ? targetSubject.name : 'General';
+    const subjNotes = notes.filter(n => selectedSubjectId === 'ALL' || n.subject_id === selectedSubjectId);
+    const textContent = subjNotes.map(n => n.content).join('\n\n');
 
     try {
-      const newCards = await generateFlashcards(selectedTopic, activeNoteContent);
-      addFlashcards(newCards);
+      const newCards = await generateFlashcards(subjName, textContent);
+      addFlashcards(newCards, selectedSubjectId !== 'ALL' ? selectedSubjectId : subjects[0]?.id);
       setGenMsg(`Generated ${newCards.length} new flashcards!`);
       setCurrentIndex(0);
       setIsFlipped(false);
@@ -79,8 +81,8 @@ export default function FlashcardsPage() {
     <div className="flashcards-page">
       <div className="page-header">
         <div>
-          <h2 className="page-title">Interactive AI Flashcard Deck</h2>
-          <p className="page-subtitle">Master key terminology and definitions with active recall flip-cards.</p>
+          <h2 className="page-title">Interactive AI Flashcard Decks</h2>
+          <p className="page-subtitle">Master key subject terms and definitions using active recall flip-cards.</p>
         </div>
       </div>
 
@@ -116,16 +118,16 @@ export default function FlashcardsPage() {
           <select
             className="select-input"
             style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-            value={selectedTopic}
+            value={selectedSubjectId}
             onChange={(e) => {
-              setSelectedTopic(e.target.value);
+              setSelectedSubjectId(e.target.value);
               setCurrentIndex(0);
               setIsFlipped(false);
             }}
           >
-            <option value="">All Topics</option>
-            {topics.map((t) => (
-              <option key={t.id} value={t.title}>{t.title}</option>
+            <option value="ALL">All Subjects</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
 

@@ -4,11 +4,14 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 
 import DashboardPage from './pages/DashboardPage';
+import SubjectDetailPage from './pages/SubjectDetailPage';
 import NotesPage from './pages/NotesPage';
 import TopicsPage from './pages/TopicsPage';
 import QuizzesPage from './pages/QuizzesPage';
 import FlashcardsPage from './pages/FlashcardsPage';
 import ProgressPage from './pages/ProgressPage';
+import StreakPage from './pages/StreakPage';
+import PlannerPage from './pages/PlannerPage';
 import SettingsPage from './pages/SettingsPage';
 
 function MainLayout() {
@@ -18,6 +21,8 @@ function MainLayout() {
     switch (currentPage) {
       case 'dashboard':
         return <DashboardPage />;
+      case 'subject_detail':
+        return <SubjectDetailPage />;
       case 'notes':
         return <NotesPage />;
       case 'topics':
@@ -28,6 +33,10 @@ function MainLayout() {
         return <FlashcardsPage />;
       case 'progress':
         return <ProgressPage />;
+      case 'streak':
+        return <StreakPage />;
+      case 'planner':
+        return <PlannerPage />;
       case 'settings':
         return <SettingsPage />;
       default:

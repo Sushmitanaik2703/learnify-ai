@@ -10,17 +10,24 @@ import {
   CheckCircle2, 
   AlertCircle,
   Sparkles,
-  X
+  X,
+  Plus,
+  BookOpen
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { uploadNotes, extractTopics } from '../api';
+import CreateSubjectModal from '../components/CreateSubjectModal';
 
 export default function NotesPage() {
-  const { notes, addNote, deleteNote, addTopics, setCurrentPage } = useApp();
+  const { notes, subjects, addNote, deleteNote, addTopics, setCurrentPage } = useApp();
 
   const [activeTab, setActiveTab] = useState('file'); // 'file' or 'paste'
   const [selectedFile, setSelectedFile] = useState(null);
   const [pasteText, setPasteText] = useState('');
+
+  // Subject selection for upload
+  const [selectedSubjectId, setSelectedSubjectId] = useState(subjects[0] ? subjects[0].id : '');
+  const [isCreateSubjOpen, setIsCreateSubjOpen] = useState(false);
   
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -28,7 +35,8 @@ export default function NotesPage() {
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
-  const [formatFilter, setFormatFilter] = useState('ALL'); // ALL, PDF, TXT
+  const [formatFilter, setFormatFilter] = useState('ALL');
+  const [subjectFilter, setSubjectFilter] = useState('ALL');
 
   // Note Viewer Modal state
   const [viewingNote, setViewingNote] = useState(null);
@@ -44,20 +52,31 @@ export default function NotesPage() {
   };
 
   const handleUploadSubmit = async () => {
+    const targetSubjectId = selectedSubjectId || (subjects[0] ? subjects[0].id : null);
+    if (!targetSubjectId) {
+      setUploadError('Please create or select a subject before uploading study material.');
+      return;
+    }
+
     if (activeTab === 'paste') {
       if (!pasteText.trim()) {
         setUploadError('Please enter note text first.');
         return;
       }
       setUploadError(null);
-      const created = addNote({
-        filename: `Pasted_Notes_${new Date().toLocaleTimeString().replace(/:/g, '-')}.txt`,
-        file_type: 'TXT',
-        content: pasteText.trim(),
-        char_count: pasteText.trim().length
-      });
-      setUploadSuccess(`Note text saved! (${created.char_count} characters)`);
-      setPasteText('');
+      try {
+        const created = addNote({
+          subject_id: targetSubjectId,
+          filename: `Pasted_Notes_${new Date().toLocaleTimeString().replace(/:/g, '-')}.txt`,
+          file_type: 'TXT',
+          content: pasteText.trim(),
+          char_count: pasteText.trim().length
+        });
+        setUploadSuccess(`Note text saved under subject! (${created.char_count} characters)`);
+        setPasteText('');
+      } catch (err) {
+        setUploadError(err.message);
+      }
       return;
     }
 
@@ -73,17 +92,18 @@ export default function NotesPage() {
     try {
       const data = await uploadNotes(selectedFile);
       const created = addNote({
+        subject_id: targetSubjectId,
         filename: data.filename,
         file_type: data.file_type,
         content: data.content,
         char_count: data.char_count
       });
 
-      // Automatically extract topics for newly uploaded note!
+      // Automatically extract concepts for newly uploaded note!
       try {
         const topicsList = await extractTopics(data.content);
-        addTopics(topicsList, created.id);
-        setUploadSuccess(`Uploaded "${data.filename}" and extracted ${topicsList.length} topics!`);
+        addTopics(topicsList, created.id, targetSubjectId);
+        setUploadSuccess(`Uploaded "${data.filename}" to subject and extracted ${topicsList.length} concepts!`);
       } catch (tErr) {
         setUploadSuccess(`Uploaded "${data.filename}" successfully!`);
       }
@@ -101,8 +121,8 @@ export default function NotesPage() {
     setExtractMsg(null);
     try {
       const list = await extractTopics(note.content);
-      addTopics(list, note.id);
-      setExtractMsg(`Extracted ${list.length} new topics!`);
+      addTopics(list, note.id, note.subject_id);
+      setExtractMsg(`Extracted ${list.length} new concepts!`);
     } catch (err) {
       setExtractMsg(`Extraction error: ${err.message}`);
     } finally {
@@ -114,7 +134,8 @@ export default function NotesPage() {
   const filteredNotes = notes.filter((n) => {
     const matchesSearch = n.filename.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFormat = formatFilter === 'ALL' || n.file_type === formatFilter;
-    return matchesSearch && matchesFormat;
+    const matchesSubject = subjectFilter === 'ALL' || n.subject_id === subjectFilter;
+    return matchesSearch && matchesFormat && matchesSubject;
   });
 
   return (
@@ -122,7 +143,7 @@ export default function NotesPage() {
       <div className="page-header">
         <div>
           <h2 className="page-title">Study Notes & Material Management</h2>
-          <p className="page-subtitle">Upload lecture PDFs, text documents, or paste notes for AI concept extraction.</p>
+          <p className="page-subtitle">Upload lecture PDFs or text documents and assign them to academic subjects.</p>
         </div>
       </div>
 
@@ -132,7 +153,34 @@ export default function NotesPage() {
           <div className="card-icon">
             <UploadCloud size={20} />
           </div>
-          <h3 className="card-title">Upload New Material</h3>
+          <h3 className="card-title">Upload New Study Material</h3>
+        </div>
+
+        {/* Subject Assignment Selector */}
+        <div style={{ marginBottom: '1.25rem', padding: '1rem', background: 'var(--bg-input)', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+            Assign to Subject <span style={{ color: 'var(--accent-rose)' }}>*</span>
+          </label>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <select
+              className="select-input"
+              value={selectedSubjectId}
+              onChange={(e) => setSelectedSubjectId(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-secondary-nav"
+              onClick={() => setIsCreateSubjOpen(true)}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <Plus size={16} /> + New Subject
+            </button>
+          </div>
         </div>
 
         {/* Tab switcher */}
@@ -190,12 +238,12 @@ export default function NotesPage() {
           {isUploading ? (
             <>
               <span className="spinner"></span>
-              <span>Processing Document & Extracting Text...</span>
+              <span>Parsing Document & Extracting Concepts...</span>
             </>
           ) : (
             <>
               <Zap size={18} />
-              <span>{activeTab === 'file' ? 'Upload & Extract Topics' : 'Save Notes & Extract'}</span>
+              <span>{activeTab === 'file' ? 'Upload & Extract Concepts' : 'Save Notes & Extract'}</span>
             </>
           )}
         </button>
@@ -228,13 +276,24 @@ export default function NotesPage() {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Filter size={16} color="var(--text-muted)" />
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            className="select-input"
+            style={{ width: 'auto', fontSize: '0.8rem' }}
+            value={subjectFilter}
+            onChange={(e) => setSubjectFilter(e.target.value)}
+          >
+            <option value="ALL">All Subjects ({notes.length})</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+
           <button
             className={`filter-pill ${formatFilter === 'ALL' ? 'active' : ''}`}
             onClick={() => setFormatFilter('ALL')}
           >
-            All ({notes.length})
+            All Format
           </button>
           <button
             className={`filter-pill ${formatFilter === 'PDF' ? 'active' : ''}`}
@@ -260,43 +319,46 @@ export default function NotesPage() {
         </div>
       ) : (
         <div className="notes-list-container">
-          {filteredNotes.map((note) => (
-            <div key={note.id} className="note-item-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div className={`file-type-icon ${note.file_type.toLowerCase()}`}>
-                  {note.file_type}
+          {filteredNotes.map((note) => {
+            const noteSubject = subjects.find(s => s.id === note.subject_id);
+            return (
+              <div key={note.id} className="note-item-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div className={`file-type-icon ${note.file_type.toLowerCase()}`}>
+                    {note.file_type}
+                  </div>
+                  <div>
+                    <h4 className="note-title">{note.filename}</h4>
+                    <p className="note-meta-text">
+                      Subject: <strong>{noteSubject ? noteSubject.name : 'General'}</strong> • Uploaded: {note.created_at} • {note.char_count} chars • {note.topics_count} concepts
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="note-title">{note.filename}</h4>
-                  <p className="note-meta-text">
-                    Uploaded: {note.created_at} • {note.char_count} characters • {note.topics_count} topics extracted
-                  </p>
-                </div>
-              </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  className="btn-icon-secondary"
-                  onClick={() => setViewingNote(note)}
-                  title="View Content & Topics"
-                >
-                  <Eye size={16} />
-                  <span>View</span>
-                </button>
-                <button
-                  className="btn-icon-danger"
-                  onClick={() => {
-                    if (window.confirm(`Delete "${note.filename}"?`)) {
-                      deleteNote(note.id);
-                    }
-                  }}
-                  title="Delete File"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn-icon-secondary"
+                    onClick={() => setViewingNote(note)}
+                    title="View Content & Concepts"
+                  >
+                    <Eye size={16} />
+                    <span>View</span>
+                  </button>
+                  <button
+                    className="btn-icon-danger"
+                    onClick={() => {
+                      if (window.confirm(`Delete "${note.filename}"?`)) {
+                        deleteNote(note.id);
+                      }
+                    }}
+                    title="Delete File"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -310,7 +372,7 @@ export default function NotesPage() {
                 <div>
                   <h3 className="modal-title">{viewingNote.filename}</h3>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {viewingNote.file_type} • {viewingNote.char_count} characters
+                    Subject: {subjects.find(s => s.id === viewingNote.subject_id)?.name || 'General'} • {viewingNote.file_type} • {viewingNote.char_count} characters
                   </span>
                 </div>
               </div>
@@ -350,7 +412,7 @@ export default function NotesPage() {
                 ) : (
                   <>
                     <Sparkles size={16} />
-                    <span>Extract AI Topics</span>
+                    <span>Re-extract Concepts</span>
                   </>
                 )}
               </button>
@@ -370,11 +432,19 @@ export default function NotesPage() {
                   cursor: 'pointer'
                 }}
               >
-                View All Topics →
+                View Concepts →
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Create Subject Modal */}
+      {isCreateSubjOpen && (
+        <CreateSubjectModal
+          isOpen={isCreateSubjOpen}
+          onClose={() => setIsCreateSubjOpen(false)}
+        />
       )}
     </div>
   );

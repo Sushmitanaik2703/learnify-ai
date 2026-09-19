@@ -7,13 +7,13 @@ import {
   HelpCircle, 
   Layers, 
   AlertTriangle,
-  RotateCcw,
-  BookOpen
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function ProgressPage() {
-  const { topics, quizzes, flashcards, setCurrentPage } = useApp();
+  const { subjects, notes, topics, quizzes, flashcards, setCurrentPage, setSelectedSubjectId } = useApp();
 
   const completedTopics = topics.filter((t) => t.status === 'Completed');
   const inProgressTopics = topics.filter((t) => t.status === 'In Progress');
@@ -25,19 +25,16 @@ export default function ProgressPage() {
   const reviewedCards = flashcards.filter((f) => f.reviewed);
   const difficultCards = flashcards.filter((f) => f.rating === 'Difficult');
 
-  // Weak topics detection: topics with accuracy < 60% or marked not completed
-  const weakTopicsList = topics.filter((t) => t.status !== 'Completed');
-
   return (
     <div className="progress-page">
       <div className="page-header">
         <div>
-          <h2 className="page-title">Study Progress & Learning Analytics</h2>
-          <p className="page-subtitle">Track your topic mastery, quiz history, and weak-area revision priority.</p>
+          <h2 className="page-title">Subject & Concept Learning Analytics</h2>
+          <p className="page-subtitle">Track topic completion percentages, quiz accuracy, and areas needing revision.</p>
         </div>
       </div>
 
-      {/* Progress Cards Grid */}
+      {/* Stats Summary Cards */}
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>
         <div className="stat-card">
           <div className="stat-icon-wrapper emerald">
@@ -45,7 +42,7 @@ export default function ProgressPage() {
           </div>
           <div>
             <div className="stat-value">{completedTopics.length} / {topics.length}</div>
-            <div className="stat-label">Completed Topics ({topics.length > 0 ? Math.round((completedTopics.length / topics.length) * 100) : 0}%)</div>
+            <div className="stat-label">Mastered Concepts ({topics.length > 0 ? Math.round((completedTopics.length / topics.length) * 100) : 0}%)</div>
           </div>
         </div>
 
@@ -55,7 +52,7 @@ export default function ProgressPage() {
           </div>
           <div>
             <div className="stat-value">{avgAccuracy}%</div>
-            <div className="stat-label">Average Quiz Accuracy ({quizzes.length} Quizzes)</div>
+            <div className="stat-label">Average Quiz Score ({quizzes.length} Quizzes)</div>
           </div>
         </div>
 
@@ -75,13 +72,85 @@ export default function ProgressPage() {
           </div>
           <div>
             <div className="stat-value">{difficultCards.length}</div>
-            <div className="stat-label">Cards Tagged Difficult</div>
+            <div className="stat-label">Difficult Flashcards</div>
           </div>
         </div>
       </div>
 
+      {/* SUBJECT & CONCEPT PROGRESS BREAKDOWN */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <h3 className="section-title" style={{ marginBottom: '1.25rem' }}>
+          <BookOpen size={20} color="var(--primary)" />
+          Progress Breakdown by Subject & Concept
+        </h3>
+
+        {subjects.length === 0 ? (
+          <div className="empty-state">
+            <BookOpen size={36} className="empty-icon" />
+            <p>No subjects created yet. Create a subject to start tracking progress!</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {subjects.map((subj) => {
+              const subjNotes = notes.filter(n => n.subject_id === subj.id);
+              const subjTopics = topics.filter(t => t.subject_id === subj.id);
+              const subjCompleted = subjTopics.filter(t => t.status === 'Completed');
+              const subjProgress = subjTopics.length > 0 
+                ? Math.round((subjCompleted.length / subjTopics.length) * 100)
+                : 0;
+
+              return (
+                <div key={subj.id} className="glass-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{ width: 12, height: 12, borderRadius: '50%', background: subj.color || 'var(--primary)' }} />
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{subj.name}</h4>
+                    </div>
+                    <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{subjProgress}% Overall</span>
+                  </div>
+
+                  <div className="progress-bar-bg" style={{ height: 10, marginBottom: '1.25rem' }}>
+                    <div className="progress-bar-fill" style={{ width: `${subjProgress}%`, background: subj.color || 'var(--primary)' }} />
+                  </div>
+
+                  <h5 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 700 }}>
+                    Concept Breakdown ({subjTopics.length} concepts):
+                  </h5>
+
+                  {subjTopics.length === 0 ? (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>No concepts extracted yet for this subject.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {subjTopics.map((top) => {
+                        let topProgress = 0;
+                        if (top.status === 'Completed') topProgress = 100;
+                        else if (top.status === 'In Progress') topProgress = 50;
+
+                        return (
+                          <div key={top.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', background: 'var(--bg-input)', borderRadius: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <span className={`status-tag ${top.status?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {top.status}
+                              </span>
+                              <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{top.title}</span>
+                            </div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                              {topProgress}%
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* QUIZ HISTORY */}
       <div className="content-split-grid">
-        {/* Left Column: Quiz History */}
         <div className="glass-card">
           <h3 className="card-title" style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <HelpCircle size={18} color="var(--primary)" />
@@ -113,37 +182,29 @@ export default function ProgressPage() {
           )}
         </div>
 
-        {/* Right Column: Weak Topics Queue */}
+        {/* WEAK CONCEPTS REVISION QUEUE */}
         <div className="glass-card">
           <h3 className="card-title" style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertTriangle size={18} color="var(--accent-amber)" />
-            Weak Topic Revision Queue
+            Focus Revision Queue
           </h3>
 
-          {weakTopicsList.length === 0 ? (
+          {notStartedTopics.length === 0 && inProgressTopics.length === 0 ? (
             <div className="empty-state">
               <CheckCircle2 size={36} className="empty-icon" color="var(--accent-emerald)" />
-              <p>Great job! All extracted topics marked as completed.</p>
+              <p>Great job! All extracted concepts marked as completed.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {weakTopicsList.map((t) => (
+              {[...inProgressTopics, ...notStartedTopics].map((t) => (
                 <div key={t.id} className="recommended-topic-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                     <h4 className="rec-topic-title">{t.title}</h4>
-                    <span className="coming-soon-pill" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-rose)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                      Revise Priority
+                    <span className="coming-soon-pill" style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-amber)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                      {t.status}
                     </span>
                   </div>
                   <p className="rec-topic-desc">{t.explanation}</p>
-                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      className="rec-action-btn"
-                      onClick={() => setCurrentPage('topics')}
-                    >
-                      <BookOpen size={12} /> Revise Topic
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>

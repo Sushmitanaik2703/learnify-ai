@@ -5,8 +5,8 @@ import {
   Search, 
   Filter, 
   CheckCircle2, 
-  Clock, 
   HelpCircle,
+  Layers,
   X,
   Zap,
   Lightbulb,
@@ -17,10 +17,11 @@ import { useApp } from '../context/AppContext';
 import { generateExplanation } from '../api';
 
 export default function TopicsPage() {
-  const { topics, updateTopicStatus, searchQuery, setCurrentPage } = useApp();
+  const { topics, subjects, updateTopicStatus, searchQuery, setCurrentPage } = useApp();
 
   // Filters
   const [localSearch, setLocalSearch] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('ALL');
   const [difficultyFilter, setDifficultyFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -31,7 +32,6 @@ export default function TopicsPage() {
   const [explanationResult, setExplanationResult] = useState(null);
   const [explainError, setExplainError] = useState(null);
 
-  // Combined search term from navbar or local input
   const query = (localSearch || searchQuery).toLowerCase();
 
   const filteredTopics = topics.filter((t) => {
@@ -39,10 +39,11 @@ export default function TopicsPage() {
                           t.explanation.toLowerCase().includes(query) ||
                           (t.keywords || []).some(k => k.toLowerCase().includes(query));
     
+    const matchesSubject = subjectFilter === 'ALL' || t.subject_id === subjectFilter;
     const matchesDiff = difficultyFilter === 'ALL' || t.difficulty?.toUpperCase() === difficultyFilter;
     const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
 
-    return matchesSearch && matchesDiff && matchesStatus;
+    return matchesSearch && matchesSubject && matchesDiff && matchesStatus;
   });
 
   const handleOpenExplainModal = async (topic) => {
@@ -82,8 +83,8 @@ export default function TopicsPage() {
     <div className="topics-page">
       <div className="page-header">
         <div>
-          <h2 className="page-title">Extracted Topics & Core Concepts</h2>
-          <p className="page-subtitle">Review key study topics extracted by LearnLoop AI from your uploaded notes.</p>
+          <h2 className="page-title">Important Concepts & Study Summaries</h2>
+          <p className="page-subtitle">Review filtered core concepts extracted directly from your subject study material.</p>
         </div>
       </div>
 
@@ -94,13 +95,25 @@ export default function TopicsPage() {
           <input
             type="text"
             className="filter-search-input"
-            placeholder="Search topics by title, summary, or keywords..."
+            placeholder="Search concepts by title, summary, or keywords..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
           />
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            className="select-input"
+            style={{ width: 'auto', fontSize: '0.8rem' }}
+            value={subjectFilter}
+            onChange={(e) => setSubjectFilter(e.target.value)}
+          >
+            <option value="ALL">All Subjects ({topics.length})</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
             <Filter size={14} /> Diff:
           </span>
@@ -127,64 +140,93 @@ export default function TopicsPage() {
         </div>
       </div>
 
-      {/* Topics Grid */}
+      {/* Concepts Grid */}
       {filteredTopics.length === 0 ? (
         <div className="empty-state">
           <BookOpen size={40} className="empty-icon" />
-          <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>No topics match your filters</h4>
-          <p style={{ fontSize: '0.85rem' }}>Try clearing filters or upload study notes to extract new topics.</p>
+          <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>No concepts match your criteria</h4>
+          <p style={{ fontSize: '0.85rem' }}>Upload study notes to extract concepts or adjust search filters.</p>
         </div>
       ) : (
         <div className="topics-list-grid">
-          {filteredTopics.map((topic) => (
-            <div key={topic.id} className="topic-main-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span className={`difficulty-pill ${topic.difficulty?.toLowerCase()}`}>
-                    {topic.difficulty}
+          {filteredTopics.map((topic) => {
+            const conceptSubject = subjects.find(s => s.id === topic.subject_id);
+            return (
+              <div key={topic.id} className="topic-main-card">
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span className={`difficulty-pill ${topic.difficulty?.toLowerCase()}`}>
+                        {topic.difficulty}
+                      </span>
+                      <span className={`status-tag ${topic.status?.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {topic.status}
+                      </span>
+                    </div>
+                    {topic.source_ref && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {topic.source_ref}
+                      </span>
+                    )}
+                  </div>
+
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.25rem', display: 'block' }}>
+                    Subject: {conceptSubject ? conceptSubject.name : 'General'}
                   </span>
-                  <span className={`status-tag ${topic.status?.toLowerCase().replace(/\s+/g, '-')}`}>
-                    {topic.status}
-                  </span>
+
+                  <h3 className="topic-card-title">{topic.title}</h3>
+                  <p className="topic-card-explanation">{topic.explanation}</p>
+
+                  {topic.keywords && topic.keywords.length > 0 && (
+                    <div className="keywords-group" style={{ marginBottom: '1.25rem' }}>
+                      {topic.keywords.map((kw, idx) => (
+                        <span key={idx} className="keyword-tag">#{kw}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <h3 className="topic-card-title">{topic.title}</h3>
-              <p className="topic-card-explanation">{topic.explanation}</p>
+                {/* Concept-Level Actions */}
+                <div className="topic-card-footer" style={{ flexDirection: 'column', gap: '0.6rem', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <button
+                      className="btn-explain-ai"
+                      style={{ flex: 1, justifyContent: 'center' }}
+                      onClick={() => handleOpenExplainModal(topic)}
+                    >
+                      <Sparkles size={14} /> Explain
+                    </button>
+                    <button
+                      className="btn-secondary-nav"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage('quizzes')}
+                    >
+                      <HelpCircle size={14} color="var(--primary)" /> Concept Quiz
+                    </button>
+                    <button
+                      className="btn-secondary-nav"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem' }}
+                      onClick={() => setCurrentPage('flashcards')}
+                    >
+                      <Layers size={14} color="var(--secondary)" /> Flashcards
+                    </button>
+                  </div>
 
-              {topic.keywords && topic.keywords.length > 0 && (
-                <div className="keywords-group" style={{ marginBottom: '1.25rem' }}>
-                  {topic.keywords.map((kw, idx) => (
-                    <span key={idx} className="keyword-tag">#{kw}</span>
-                  ))}
-                </div>
-              )}
-
-              <div className="topic-card-footer">
-                <button
-                  className="btn-explain-ai"
-                  onClick={() => handleOpenExplainModal(topic)}
-                >
-                  <Sparkles size={15} />
-                  <span>Explain with AI</span>
-                </button>
-
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <button
                     className={`status-toggle-btn ${topic.status === 'Completed' ? 'completed' : ''}`}
+                    style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => {
                       const nextStatus = topic.status === 'Completed' ? 'In Progress' : 'Completed';
                       updateTopicStatus(topic.id, nextStatus);
                     }}
-                    title="Toggle Completion Status"
                   >
-                    <CheckCircle2 size={15} />
-                    <span>{topic.status === 'Completed' ? 'Completed' : 'Mark Done'}</span>
+                    <CheckCircle2 size={14} />
+                    <span>{topic.status === 'Completed' ? 'Studied & Completed' : 'Mark as Studied'}</span>
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -198,9 +240,9 @@ export default function TopicsPage() {
                   <Sparkles size={20} color="var(--primary)" />
                 </div>
                 <div>
-                  <h3 className="modal-title">AI Topic Breakdown</h3>
+                  <h3 className="modal-title">AI Concept Breakdown</h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Topic: <strong>{activeExplainTopic.title}</strong>
+                    Concept: <strong>{activeExplainTopic.title}</strong>
                   </p>
                 </div>
               </div>
@@ -235,7 +277,6 @@ export default function TopicsPage() {
                 </div>
               ) : explanationResult ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  {/* Simple Overview Box */}
                   <div className="explain-section-box">
                     <h4 className="explain-box-title" style={{ color: 'var(--accent-cyan)' }}>
                       <Zap size={16} /> Overview ({explanationResult.level} Level)
@@ -245,7 +286,6 @@ export default function TopicsPage() {
                     </p>
                   </div>
 
-                  {/* Detailed Breakdown */}
                   <div className="explain-section-box">
                     <h4 className="explain-box-title" style={{ color: 'var(--primary)' }}>
                       <BookOpen size={16} /> Detailed Concept Breakdown
@@ -255,7 +295,6 @@ export default function TopicsPage() {
                     </p>
                   </div>
 
-                  {/* Real World Analogy / Example */}
                   <div className="explain-section-box">
                     <h4 className="explain-box-title" style={{ color: 'var(--accent-emerald)' }}>
                       <Lightbulb size={16} /> Real-World Example & Analogy
@@ -265,7 +304,6 @@ export default function TopicsPage() {
                     </p>
                   </div>
 
-                  {/* Key Takeaways & Common Mistakes split */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="explain-section-box">
                       <h4 className="explain-box-title" style={{ color: 'var(--accent-amber)' }}>
@@ -280,7 +318,7 @@ export default function TopicsPage() {
 
                     <div className="explain-section-box">
                       <h4 className="explain-box-title" style={{ color: 'var(--accent-rose)' }}>
-                        <AlertTriangle size={16} /> Common Exam Pitfalls
+                        <AlertTriangle size={16} /> Common Misconceptions
                       </h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         {(explanationResult.common_mistakes || []).map((m, i) => (
@@ -290,7 +328,6 @@ export default function TopicsPage() {
                     </div>
                   </div>
 
-                  {/* Revision Summary */}
                   <div className="explain-section-box" style={{ background: 'rgba(99,102,241,0.1)', borderColor: 'rgba(99,102,241,0.3)' }}>
                     <h4 className="explain-box-title" style={{ color: '#A5B4FC' }}>
                       ⚡ Quick Revision Summary
@@ -312,7 +349,7 @@ export default function TopicsPage() {
                 }}
                 style={{ width: 'auto' }}
               >
-                Take Quiz for this Topic →
+                Start Concept Quiz →
               </button>
             </div>
           </div>

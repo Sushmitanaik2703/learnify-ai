@@ -1,286 +1,265 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  FileText, 
   BookOpen, 
+  FileText, 
   HelpCircle, 
   Layers, 
   TrendingUp, 
-  UploadCloud, 
+  Plus, 
   Sparkles, 
   ArrowRight,
-  Clock,
+  Flame,
+  Calendar,
+  UploadCloud,
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import CreateSubjectModal from '../components/CreateSubjectModal';
 
 export default function DashboardPage() {
   const { 
-    setCurrentPage, 
+    subjects, 
     notes, 
     topics, 
     quizzes, 
     flashcards, 
-    setActiveNote 
+    setSelectedSubjectId, 
+    setCurrentPage,
+    streakData
   } = useApp();
 
-  const completedTopicsCount = topics.filter((t) => t.status === 'Completed').length;
-  const progressPercent = topics.length > 0 ? Math.round((completedTopicsCount / topics.length) * 100) : 0;
-  
-  const totalQuizScore = quizzes.reduce((acc, q) => acc + q.percentage, 0);
-  const avgQuizAccuracy = quizzes.length > 0 ? Math.round(totalQuizScore / quizzes.length) : 0;
-
-  const reviewedFlashcardsCount = flashcards.filter((f) => f.reviewed).length;
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
     <div className="dashboard-page">
       {/* Welcome Banner */}
       <section className="welcome-hero">
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <span className="pill-badge" style={{ marginBottom: '0.75rem' }}>✨ LearnLoop AI Learning Engine</span>
-          <h2 className="hero-title">Welcome back to your Study Hub 🚀</h2>
-          <p className="hero-subtitle">
-            Track your study progress, generate AI-powered quiz assessments from your uploaded lecture notes, and master key exam topics.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <button className="hero-cta-btn" onClick={() => setCurrentPage('notes')}>
-              <UploadCloud size={18} />
-              <span>Upload Study Material</span>
-            </button>
-            <button 
-              className="btn-secondary" 
-              onClick={() => setCurrentPage('quizzes')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                background: 'rgba(255,255,255,0.08)',
-                color: 'var(--text-main)',
-                border: '1px solid var(--border-color)',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '14px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              <HelpCircle size={18} />
-              <span>Take a Quick Quiz</span>
-            </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <span className="pill-badge" style={{ marginBottom: '0.75rem' }}>✨ Subject-Organized Learning Engine</span>
+            <h2 className="hero-title">Welcome to LearnLoop AI 🚀</h2>
+            <p className="hero-subtitle">
+              Organize your study notes around subjects, extract core concepts, practice quizzes, and maintain your daily study streak.
+            </p>
+          </div>
+
+          {/* Daily Streak Counter Badge */}
+          <div 
+            className="glass-card" 
+            style={{ 
+              padding: '1rem 1.25rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '1rem', 
+              background: 'rgba(245, 158, 11, 0.12)', 
+              borderColor: 'rgba(245, 158, 11, 0.3)',
+              cursor: 'pointer'
+            }}
+            onClick={() => setCurrentPage('streak')}
+          >
+            <Flame size={32} color="#F59E0B" />
+            <div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F59E0B' }}>
+                {streakData.currentStreak || 1} Day Streak 🔥
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Goal: {streakData.dailyGoalMinutes || 30} mins daily
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Summary Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon-wrapper blue">
-            <FileText size={22} />
-          </div>
+      {/* SUBJECT-FIRST SECTION */}
+      <section style={{ marginBottom: '3rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
-            <div className="stat-value">{notes.length}</div>
-            <div className="stat-label">Uploaded Notes</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper purple">
-            <BookOpen size={22} />
-          </div>
-          <div>
-            <div className="stat-value">{topics.length}</div>
-            <div className="stat-label">Extracted Topics</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper emerald">
-            <HelpCircle size={22} />
-          </div>
-          <div>
-            <div className="stat-value">{quizzes.length}</div>
-            <div className="stat-label">Quizzes Completed ({avgQuizAccuracy}% Avg)</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper amber">
-            <Layers size={22} />
-          </div>
-          <div>
-            <div className="stat-value">{reviewedFlashcardsCount} / {flashcards.length}</div>
-            <div className="stat-label">Flashcards Mastered</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Split Grid */}
-      <div className="content-split-grid">
-        {/* Left Column: Quick Actions & Recent Materials */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {/* Quick Action Cards */}
-          <div className="glass-card">
-            <h3 className="card-title" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Sparkles size={18} color="var(--primary)" />
-              Quick Actions
+            <h3 className="section-title">
+              <BookOpen size={22} color="var(--primary)" />
+              My Academic Subjects ({subjects.length})
             </h3>
-            <div className="quick-actions-grid">
-              <div className="quick-action-item" onClick={() => setCurrentPage('notes')}>
-                <div className="quick-icon"><UploadCloud size={20} /></div>
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Upload Notes</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Parse PDF/TXT notes</p>
-                </div>
-              </div>
+            <p className="section-desc">Select a subject to view its study materials, extracted concepts, and quizzes.</p>
+          </div>
 
-              <div className="quick-action-item" onClick={() => setCurrentPage('topics')}>
-                <div className="quick-icon"><BookOpen size={20} /></div>
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Explore Topics</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>View AI summaries</p>
-                </div>
-              </div>
+          <button className="btn-primary" style={{ width: 'auto' }} onClick={() => setIsCreateModalOpen(true)}>
+            <Plus size={18} />
+            <span>Create Subject</span>
+          </button>
+        </div>
 
-              <div className="quick-action-item" onClick={() => setCurrentPage('quizzes')}>
-                <div className="quick-icon"><HelpCircle size={20} /></div>
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Start Quiz</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Test your accuracy</p>
-                </div>
-              </div>
+        {subjects.length === 0 ? (
+          <div className="empty-state">
+            <BookOpen size={40} className="empty-icon" />
+            <h4 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>No subjects created yet</h4>
+            <p style={{ fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+              Create your first subject (e.g. Computer Networks, DBMS, Physics) to organize your study notes.
+            </p>
+            <button className="btn-primary" style={{ width: 'auto', margin: '0 auto' }} onClick={() => setIsCreateModalOpen(true)}>
+              <Plus size={16} /> Create Subject
+            </button>
+          </div>
+        ) : (
+          <div className="topics-list-grid">
+            {subjects.map((subj) => {
+              const subjNotes = notes.filter((n) => n.subject_id === subj.id);
+              const subjTopics = topics.filter((t) => t.subject_id === subj.id);
+              const completedTopics = subjTopics.filter((t) => t.status === 'Completed');
+              const subjQuizzes = quizzes.filter((q) => q.subject_id === subj.id || subjTopics.some(t => t.title === q.topic));
+              const subjCards = flashcards.filter((c) => c.subject_id === subj.id || subjTopics.some(t => t.title === c.topic));
 
-              <div className="quick-action-item" onClick={() => setCurrentPage('flashcards')}>
-                <div className="quick-icon"><Layers size={20} /></div>
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Flashcards</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Review card deck</p>
+              const overallProgress = subjTopics.length > 0 
+                ? Math.round((completedTopics.length / subjTopics.length) * 100) 
+                : 0;
+
+              return (
+                <div 
+                  key={subj.id} 
+                  className="glass-card" 
+                  style={{ 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    justify: 'space-between',
+                    borderTop: '4px solid ' + (subj.color || 'var(--primary)')
+                  }}
+                  onClick={() => {
+                    setSelectedSubjectId(subj.id);
+                    setCurrentPage('subject_detail');
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <h4 style={{ fontSize: '1.15rem', fontWeight: 800 }}>{subj.name}</h4>
+                      <span className="file-type-badge">{subjNotes.length} Materials</span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', height: 40, overflow: 'hidden' }}>
+                      {subj.description || 'No description provided.'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
+                      <span>Subject Progress</span>
+                      <span>{overallProgress}%</span>
+                    </div>
+                    <div className="progress-bar-bg" style={{ height: 8, marginBottom: '1rem' }}>
+                      <div className="progress-bar-fill" style={{ width: `${overallProgress}%`, background: subj.color || 'var(--primary)' }} />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textTransform: 'center', textAlign: 'center' }}>
+                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjTopics.length}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Concepts</span>
+                      </div>
+                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjQuizzes.length}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Quizzes</span>
+                      </div>
+                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjCards.length}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Cards</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* QUICK ACTIONS & RECENT MATERIALS */}
+      <div className="content-split-grid">
+        <div className="glass-card">
+          <h3 className="card-title" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={18} color="var(--primary)" />
+            Quick Learning Shortcuts
+          </h3>
+          <div className="quick-actions-grid">
+            <div className="quick-action-item" onClick={() => setIsCreateModalOpen(true)}>
+              <div className="quick-icon"><Plus size={20} /></div>
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>New Subject</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Add study subject</p>
+              </div>
+            </div>
+
+            <div className="quick-action-item" onClick={() => setCurrentPage('notes')}>
+              <div className="quick-icon"><UploadCloud size={20} /></div>
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Upload Notes</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Parse PDF / TXT file</p>
+              </div>
+            </div>
+
+            <div className="quick-action-item" onClick={() => setCurrentPage('planner')}>
+              <div className="quick-icon"><Calendar size={20} /></div>
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Study Planner</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Daily study schedule</p>
+              </div>
+            </div>
+
+            <div className="quick-action-item" onClick={() => setCurrentPage('streak')}>
+              <div className="quick-icon"><Flame size={20} /></div>
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Streak Tracker</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Calendar & goals</p>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Recent Study Materials */}
-          <div className="glass-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Clock size={18} color="var(--accent-cyan)" />
-                Recent Study Materials
-              </h3>
-              <button 
-                onClick={() => setCurrentPage('notes')}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
-              >
-                View All →
-              </button>
+        {/* Recent Notes */}
+        <div className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={18} color="var(--accent-cyan)" />
+              Recent Uploads
+            </h3>
+            <button 
+              onClick={() => setCurrentPage('notes')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              All Notes →
+            </button>
+          </div>
+
+          {notes.length === 0 ? (
+            <div className="empty-state">
+              <FileText size={32} className="empty-icon" />
+              <p>No study notes uploaded yet.</p>
             </div>
-
-            {notes.length === 0 ? (
-              <div className="empty-state">
-                <FileText size={32} className="empty-icon" />
-                <p>No uploaded notes yet. Upload your first PDF or TXT document!</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {notes.slice(0, 4).map((note) => (
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {notes.slice(0, 3).map((note) => {
+                const noteSubject = subjects.find(s => s.id === note.subject_id);
+                return (
                   <div key={note.id} className="recent-material-row">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div className="file-type-badge">{note.file_type}</div>
                       <div>
                         <h4 className="material-filename">{note.filename}</h4>
                         <span className="material-meta">
-                          {note.created_at} • {note.char_count} chars • {note.topics_count} topics
+                          Subject: {noteSubject ? noteSubject.name : 'General'} • {note.char_count} chars
                         </span>
                       </div>
                     </div>
-                    <button
-                      className="open-note-btn"
-                      onClick={() => {
-                        setActiveNote(note);
-                        setCurrentPage('notes');
-                      }}
-                    >
-                      Open
-                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Learning Progress & Recommended Topics */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {/* Learning Progress Card */}
-          <div className="glass-card">
-            <h3 className="card-title" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <TrendingUp size={18} color="var(--accent-emerald)" />
-              Overall Topic Mastery
-            </h3>
-            
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 600 }}>
-                <span>Completion Status</span>
-                <span>{progressPercent}%</span>
-              </div>
-              <div className="progress-bar-bg">
-                <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>
-              </div>
+                );
+              })}
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1.25rem' }}>
-              <div className="mini-status-box">
-                <span className="mini-box-val">{completedTopicsCount}</span>
-                <span className="mini-box-lbl">Completed Topics</span>
-              </div>
-              <div className="mini-status-box">
-                <span className="mini-box-val">{topics.length - completedTopicsCount}</span>
-                <span className="mini-box-lbl">In Progress / Pending</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Recommended Topics */}
-          <div className="glass-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BookOpen size={18} color="var(--secondary)" />
-                Recommended Focus Topics
-              </h3>
-              <button 
-                onClick={() => setCurrentPage('topics')}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
-              >
-                All Topics →
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {topics.slice(0, 3).map((topic) => (
-                <div key={topic.id} className="recommended-topic-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                    <h4 className="rec-topic-title">{topic.title}</h4>
-                    <span className={`difficulty-pill ${topic.difficulty?.toLowerCase()}`}>
-                      {topic.difficulty}
-                    </span>
-                  </div>
-                  <p className="rec-topic-desc">{topic.explanation}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.6rem' }}>
-                    <div className="keywords-group">
-                      {(topic.keywords || []).slice(0, 2).map((k, i) => (
-                        <span key={i} className="keyword-tag">#{k}</span>
-                      ))}
-                    </div>
-                    <button
-                      className="rec-action-btn"
-                      onClick={() => setCurrentPage('topics')}
-                    >
-                      Study Now <ArrowRight size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </div>
+
+      {/* Create Subject Modal */}
+      {isCreateModalOpen && (
+        <CreateSubjectModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
