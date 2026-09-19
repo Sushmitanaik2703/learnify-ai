@@ -15,13 +15,14 @@ import {
 import { useApp } from '../context/AppContext';
 
 export default function PlannerPage() {
-  const { 
-    subjects, 
-    topics, 
-    studyPlan, 
-    saveGeneratedPlan, 
-    togglePlannerItem, 
-    setCurrentPage 
+  const {
+    subjects,
+    topics,
+    studyPlan,
+    saveGeneratedPlan,
+    togglePlannerItem,
+    setCurrentPage,
+    generateDataDrivenPlan,
   } = useApp();
 
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(!studyPlan);
@@ -44,75 +45,11 @@ export default function PlannerPage() {
     e.preventDefault();
     setIsGenerating(true);
 
-    setTimeout(() => {
-      // Filter chosen subjects and topics
-      const chosenSubjs = subjects.filter(s => selectedSubjects.includes(s.id));
-      const targetSubjNames = chosenSubjs.length > 0 ? chosenSubjs.map(s => s.name) : ['General Revision'];
-
-      const totalMins = parseInt(availableTime, 10);
-      const sessLen = parseInt(sessionLength, 10);
-
-      const generatedSessions = [];
-      let remMins = totalMins;
-      let sessionCount = 1;
-
-      // Add 1-2 Subject sessions based on available time
-      chosenSubjs.forEach((sub, sIdx) => {
-        if (remMins >= sessLen) {
-          const subTopics = topics.filter(t => t.subject_id === sub.id);
-          const topName = subTopics.length > 0 ? subTopics[sIdx % subTopics.length].title : 'Core Fundamentals';
-          
-          generatedSessions.push({
-            id: `plan-${Date.now()}-${sessionCount++}`,
-            subject: sub.name,
-            concept: topName,
-            durationMinutes: sessLen,
-            type: 'Concept Study',
-            reason: `Targeting essential concept in ${sub.name} based on syllabus priority`,
-            completed: false
-          });
-          remMins -= sessLen;
-        }
-      });
-
-      // Add Quiz or Practice session if time permits
-      if (remMins >= 15) {
-        const quizDuration = Math.min(20, remMins);
-        generatedSessions.push({
-          id: `plan-${Date.now()}-${sessionCount++}`,
-          subject: targetSubjNames[0] || 'General',
-          concept: 'Knowledge Check Quiz',
-          durationMinutes: quizDuration,
-          type: 'Practice Quiz',
-          reason: 'Testing active recall accuracy on studied topics',
-          completed: false
-        });
-        remMins -= quizDuration;
-      }
-
-      // Add Rest/Break if remaining time permits
-      if (remMins > 0) {
-        generatedSessions.push({
-          id: `plan-${Date.now()}-${sessionCount++}`,
-          subject: 'Break & Rest',
-          concept: 'Mental Consolidation',
-          durationMinutes: remMins,
-          type: 'Break',
-          reason: 'Relaxation break to prevent burnout and consolidate memory',
-          completed: true
-        });
-      }
-
-      const newPlan = {
-        generatedAt: new Date().toLocaleDateString(),
-        availableMinutes: totalMins,
-        sessions: generatedSessions
-      };
-
-      saveGeneratedPlan(newPlan);
-      setIsGenerating(false);
-      setIsGeneratorOpen(false);
-    }, 600);
+    // Use the new data-driven planner engine from AppContext
+    const plan = generateDataDrivenPlan(availableTime, selectedSubjects);
+    // The function already updates state and stores the plan.
+    setIsGenerating(false);
+    setIsGeneratorOpen(false);
   };
 
   const completedCount = studyPlan ? studyPlan.sessions.filter(s => s.completed).length : 0;

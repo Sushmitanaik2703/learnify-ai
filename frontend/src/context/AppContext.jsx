@@ -349,23 +349,32 @@ export function AppProvider({ children }) {
   };
 
   // 9. Streak Tracking State
+  const getLocalDateStr = (d = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [streakData, setStreakData] = useState(() => {
     const saved = localStorage.getItem('learnloop_streak');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { return {}; }
     }
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
+    const yesterdayStr = getLocalDateStr(new Date(Date.now() - 86400000));
     return {
       currentStreak: 1,
       longestStreak: 3,
       totalActiveDays: 4,
       lastStudyDate: todayStr,
       dailyGoalMinutes: 30,
+      todayMinutes: 15,
       activeDates: {
         [todayStr]: true,
-        [new Date(Date.now() - 86400000).toISOString().split('T')[0]]: true,
-        [new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0]]: true,
-        [new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0]]: true
+        [yesterdayStr]: true,
+        [getLocalDateStr(new Date(Date.now() - 86400000 * 2))]: true,
+        [getLocalDateStr(new Date(Date.now() - 86400000 * 4))]: true
       }
     };
   });
@@ -374,18 +383,19 @@ export function AppProvider({ children }) {
     localStorage.setItem('learnloop_streak', JSON.stringify(streakData));
   }, [streakData]);
 
-  const recordStudyActivity = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
+  const recordStudyActivity = (minutesSpent = 5) => {
+    const todayStr = getLocalDateStr();
     setStreakData((prev) => {
       const activeDates = { ...(prev.activeDates || {}), [todayStr]: true };
+      const currentTodayMins = (prev.lastStudyDate === todayStr ? (prev.todayMinutes || 0) : 0) + minutesSpent;
       
       // Calculate consecutive streak
       if (prev.lastStudyDate === todayStr) {
-        return { ...prev, activeDates };
+        return { ...prev, todayMinutes: currentTodayMins, activeDates };
       }
 
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      const isConsecutive = prev.lastStudyDate === yesterday;
+      const yesterdayStr = getLocalDateStr(new Date(Date.now() - 86400000));
+      const isConsecutive = prev.lastStudyDate === yesterdayStr;
       const newStreak = isConsecutive ? (prev.currentStreak || 0) + 1 : 1;
       const newLongest = Math.max(newStreak, prev.longestStreak || 1);
 
@@ -395,6 +405,7 @@ export function AppProvider({ children }) {
         longestStreak: newLongest,
         totalActiveDays: Object.keys(activeDates).length,
         lastStudyDate: todayStr,
+        todayMinutes: currentTodayMins,
         activeDates
       };
     });
@@ -404,54 +415,195 @@ export function AppProvider({ children }) {
     setStreakData((prev) => ({ ...prev, dailyGoalMinutes: parseInt(minutes, 10) }));
   };
 
-  // 10. Study Planner State
+  // 10. Performance Metric Helpers (Concept Score, Subject Progress, Weak Topics)
+  const getConceptScore = (topic) => {
+    if (!topic) return 0;
+    
+    // 1. Status Score
+    let statusScore = 0;
+    if (topic.status === 'Completed') statusScore = 100;
+    else if (topic.status === 'In Progress') statusScore = 50;
+    
+    // 2. Quiz Performance on this concept
+    const conceptQuizzes = quizzes.filter(
+      (q) => (q.concept_id && q.concept_id === topic.id) ||
+             (q.topic && q.topic.toLowerCase() === topic.title.toLowerCase())
+    );
+    let quizScore = null;
+    if (conceptQuizzes.length > 0) {
+      // Use latest quiz attempt score
+      const latestQuiz = conceptQuizzes[0];
+      quizScore = latestQuiz.percentage !== undefined ? latestQuiz.percentage : (latestQuiz.score / latestQuiz.total_questions) * 100;
+    }
+
+    // 3. Flashcard Performance on this concept
+    const conceptCards = flashcards.filter(
+      (c) => (c.concept_id && c.concept_id === topic.id) ||
+             (c.topic && c.topic.toLowerCase() === topic.title.toLowerCase())
+    );
+    let flashcardScore = null;
+    const reviewedCards = conceptCards.filter((c) => c.reviewed);
+    if (reviewedCards.length > 0) {
+      const totalPoints = reviewedCards.reduce((acc, c) => {
+        const r = (c.rating || '').toLowerCase();
+        if (r === 'mastered' || r === 'easy') return acc + 100;
+        if (r === 'medium') return acc + 70;
+        return acc + 30; // hard/difficult
+      }, 0);
+      flashcardScore = totalPoints / reviewedCards.length;
+    }
+
+    // Weighted Combined Score
+    if (quizScore !== null && flashcardScore !== null) {
+      return Math.round(0.3 * statusScore + 0.5 * quizScore + 0.2 * flashcardScore);
+    } else if (quizScore !== null) {
+      return Math.round(0.4 * statusScore + 0.6 * quizScore);
+    } else if (flashcardScore !== null) {
+      return Math.round(0.5 * statusScore + 0.5 * flashcardScore);
+    }
+    return statusScore;
+  };
+
+  const getSubjectProgress = (subjectId) => {
+    const subjectTopics = topics.filter((t) => t.subject_id === subjectId);
+    if (subjectTopics.length === 0) return 0;
+    const totalScore = subjectTopics.reduce((acc, t) => acc + getConceptScore(t), 0);
+    return Math.round(totalScore / subjectTopics.length);
+  };
+
+  const getWeakTopics = () => {
+    return topics.map((t) => {
+      const score = getConceptScore(t);
+      const conceptQuizzes = quizzes.filter(
+        (q) => (q.concept_id && q.concept_id === t.id) ||
+               (q.topic && q.topic.toLowerCase() === t.title.toLowerCase())
+      );
+      const latestQuiz = conceptQuizzes[0];
+      const subject = subjects.find((s) => s.id === t.subject_id);
+
+      let reason = 'Incomplete Concept';
+      if (latestQuiz && (latestQuiz.percentage < 65 || (latestQuiz.score / latestQuiz.total_questions) * 100 < 65)) {
+        reason = `Low Quiz Accuracy (${latestQuiz.percentage || Math.round((latestQuiz.score / latestQuiz.total_questions) * 100)}%)`;
+      } else if (score < 65 && t.status === 'Completed') {
+        reason = 'Needs Active Review (Quiz/Flashcards low)';
+      } else if (t.status === 'In Progress') {
+        reason = 'Currently Learning';
+      } else if (t.status === 'Not Started') {
+        reason = 'Not Started';
+      }
+
+      return {
+        ...t,
+        conceptScore: score,
+        latestQuizScore: latestQuiz ? (latestQuiz.percentage || Math.round((latestQuiz.score / latestQuiz.total_questions) * 100)) : null,
+        subjectName: subject ? subject.name : 'General',
+        reason
+      };
+    }).filter((t) => t.conceptScore < 75 || t.status !== 'Completed' || t.reason.includes('Low Quiz'));
+  };
+
+  const getOverallProgress = () => {
+    if (topics.length === 0) return 0;
+    const totalScore = topics.reduce((acc, t) => acc + getConceptScore(t), 0);
+    return Math.round(totalScore / topics.length);
+  };
+
+  // 11. Data-Driven Study Planner Generator
+  const generateDataDrivenPlan = (availableMinutes = 60, selectedSubjectIds = []) => {
+    const filterSubjects = selectedSubjectIds.length > 0
+      ? subjects.filter((s) => selectedSubjectIds.includes(s.id))
+      : subjects;
+
+    const allowedSubjectIds = new Set(filterSubjects.map((s) => s.id));
+    const targetTopics = topics.filter((t) => allowedSubjectIds.has(t.subject_id));
+
+    // Sort topics by priority: Low concept score first
+    const evaluatedTopics = targetTopics.map((t) => ({
+      ...t,
+      score: getConceptScore(t),
+      subjectName: subjects.find((s) => s.id === t.subject_id)?.name || 'General'
+    })).sort((a, b) => a.score - b.score);
+
+    const sessions = [];
+    let remainingMinutes = availableMinutes;
+    let sessionIdCounter = 1;
+
+    for (const t of evaluatedTopics) {
+      if (remainingMinutes < 15) break;
+
+      let sessionType = 'Concept Study';
+      let duration = Math.min(25, remainingMinutes);
+      let reason = `Targeting concept score ${t.score}% in ${t.subjectName}`;
+
+      if (t.score < 60) {
+        sessionType = 'Practice Quiz';
+        reason = `Weak concept score (${t.score}%). Quiz practice recommended to reinforce topic.`;
+      } else if (t.status === 'Completed') {
+        sessionType = 'Flashcards Review';
+        reason = `Retention review for completed concept ${t.title}.`;
+      } else {
+        sessionType = 'Concept Study';
+        reason = `Study core principles for in-progress concept ${t.title}.`;
+      }
+
+      sessions.push({
+        id: `plan-${Date.now()}-${sessionIdCounter++}`,
+        subject: t.subjectName,
+        concept: t.title,
+        durationMinutes: duration,
+        type: sessionType,
+        reason: reason,
+        completed: false
+      });
+
+      remainingMinutes -= duration;
+
+      // Add a 10 min break if enough time remains and we have at least 2 sessions
+      if (remainingMinutes >= 15 && sessions.length % 2 === 1) {
+        const breakTime = Math.min(10, remainingMinutes);
+        sessions.push({
+          id: `plan-${Date.now()}-${sessionIdCounter++}`,
+          subject: 'Break & Rest',
+          concept: 'Mental Consolidation',
+          durationMinutes: breakTime,
+          type: 'Break',
+          reason: 'Short rest block to consolidate memory and avoid cognitive fatigue.',
+          completed: false
+        });
+        remainingMinutes -= breakTime;
+      }
+    }
+
+    // Fallback if no topics found
+    if (sessions.length === 0) {
+      sessions.push({
+        id: `plan-${Date.now()}-1`,
+        subject: filterSubjects[0]?.name || 'General',
+        concept: 'Upload Study Material',
+        durationMinutes: availableMinutes,
+        type: 'Concept Study',
+        reason: 'Upload new notes to generate concepts and personalized study recommendations.',
+        completed: false
+      });
+    }
+
+    const newPlan = {
+      generatedAt: new Date().toLocaleDateString(),
+      availableMinutes: availableMinutes,
+      sessions: sessions
+    };
+
+    setStudyPlan(newPlan);
+    return newPlan;
+  };
+
+  // 12. Study Planner State
   const [studyPlan, setStudyPlan] = useState(() => {
     const saved = localStorage.getItem('learnloop_planner');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { return null; }
     }
-    return {
-      generatedAt: new Date().toLocaleDateString(),
-      availableMinutes: 90,
-      sessions: [
-        {
-          id: 'plan-1',
-          subject: 'Computer Networks',
-          concept: 'OSI Model & Layered Architecture',
-          durationMinutes: 30,
-          type: 'Concept Study',
-          reason: 'Targeting foundational concept in Computer Networks',
-          completed: true
-        },
-        {
-          id: 'plan-2',
-          subject: 'Computer Networks',
-          concept: 'TCP/IP Protocol Suite & Handshakes',
-          durationMinutes: 25,
-          type: 'Practice Quiz',
-          reason: 'Hard concept marked as In Progress requiring quiz practice',
-          completed: false
-        },
-        {
-          id: 'plan-3',
-          subject: 'Database Management Systems',
-          concept: 'Relational Model & Normalization',
-          durationMinutes: 20,
-          type: 'Flashcards Review',
-          reason: 'Review key terms before upcoming DBMS assessment',
-          completed: false
-        },
-        {
-          id: 'plan-4',
-          subject: 'Break & Summary',
-          concept: 'Rest & Mental Consolidation',
-          durationMinutes: 15,
-          type: 'Break',
-          reason: 'Consolidate memory and prevent cognitive fatigue',
-          completed: true
-        }
-      ]
-    };
+    return null;
   });
 
   useEffect(() => {
@@ -464,7 +616,7 @@ export function AppProvider({ children }) {
       const updatedSessions = prev.sessions.map((s) =>
         s.id === sessionId ? { ...s, completed: !s.completed } : s
       );
-      recordStudyActivity();
+      recordStudyActivity(15);
       return { ...prev, sessions: updatedSessions };
     });
   };
@@ -547,6 +699,12 @@ export function AppProvider({ children }) {
         streakData,
         recordStudyActivity,
         updateStreakGoal,
+
+        getConceptScore,
+        getSubjectProgress,
+        getWeakTopics,
+        getOverallProgress,
+        generateDataDrivenPlan,
 
         studyPlan,
         togglePlannerItem,

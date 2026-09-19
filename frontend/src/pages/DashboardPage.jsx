@@ -15,8 +15,9 @@ import {
   Edit,
   CheckCircle2
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import SubjectList from '../components/SubjectList';
 import CreateSubjectModal from '../components/CreateSubjectModal';
+import { useApp } from '../context/AppContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function DashboardPage() {
@@ -124,107 +125,16 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <div className="topics-list-grid">
-            {subjects.map((subj) => {
-              const subjNotes = notes.filter((n) => n.subject_id === subj.id);
-              const subjTopics = topics.filter((t) => t.subject_id === subj.id);
-              const completedTopics = subjTopics.filter((t) => t.status === 'Completed');
-              const subjQuizzes = quizzes.filter((q) => q.subject_id === subj.id || subjTopics.some(t => t.title === q.topic));
-              const subjCards = flashcards.filter((c) => c.subject_id === subj.id || subjTopics.some(t => t.title === c.topic));
-
-              const overallProgress = subjTopics.length > 0 
-                ? Math.round((completedTopics.length / subjTopics.length) * 100) 
-                : 0;
-
-              return (
-                <div 
-                  key={subj.id} 
-                  className="glass-card" 
-                  style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justify: 'space-between',
-                    borderTop: '4px solid ' + (subj.color || 'var(--primary)'),
-                    position: 'relative'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h4 
-                        style={{ fontSize: '1.15rem', fontWeight: 800, cursor: 'pointer' }}
-                        onClick={() => {
-                          setSelectedSubjectId(subj.id);
-                          setCurrentPage('subject_detail');
-                        }}
-                      >
-                        {subj.name}
-                      </h4>
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        <button
-                          type="button"
-                          className="btn-icon-secondary"
-                          style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingSubject(subj);
-                          }}
-                          title="Edit Subject"
-                        >
-                          <Edit size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-icon-danger"
-                          style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingSubjectTarget(subj);
-                          }}
-                          title="Delete Subject"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', height: 40, overflow: 'hidden' }}>
-                      {subj.description || 'No description provided.'}
-                    </p>
-                  </div>
-
-                  <div 
-                    onClick={() => {
-                      setSelectedSubjectId(subj.id);
-                      setCurrentPage('subject_detail');
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-                      <span>Subject Progress</span>
-                      <span>{overallProgress}%</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: 8, marginBottom: '1rem' }}>
-                      <div className="progress-bar-fill" style={{ width: `${overallProgress}%`, background: subj.color || 'var(--primary)' }} />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textTransform: 'center', textAlign: 'center' }}>
-                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjNotes.length}</span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Files</span>
-                      </div>
-                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjTopics.length}</span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Concepts</span>
-                      </div>
-                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjQuizzes.length}</span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Quizzes</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+            <SubjectList
+              subjects={subjects}
+              notes={notes}
+              topics={topics}
+              quizzes={quizzes}
+              setSelectedSubjectId={setSelectedSubjectId}
+              setCurrentPage={setCurrentPage}
+              setEditingSubject={setEditingSubject}
+              setDeletingSubjectTarget={setDeletingSubjectTarget}
+            />
         )}
       </section>
 
