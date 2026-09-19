@@ -1,56 +1,101 @@
-# LearnLoop AI
+# LearnLoop AI (Learnify AI)
 
-## Project Description
+![LearnLoop Dashboard Preview](https://raw.githubusercontent.com/Sushmitanaik2703/learnify-ai/main/frontend/public/preview.png)
 
-LearnLoop AI is an AI-powered interactive learning application that transforms student notes into quizzes, flashcards, topic insights, and personalized revision recommendations.
+## 🎓 Project Overview
+LearnLoop AI (also known as **Learnify AI**) is an AI‑powered, full‑stack educational platform that helps students turn raw study material into interactive learning experiences. It supports:
+- PDF and text uploads
+- Automatic topic extraction with **PyMuPDF** and AI
+- Generation of flashcards, quizzes, and concept summaries
+- A modern, premium UI built with **React + Vite** and a polished dark/light theme system
+- Personalised study‑planner recommendations
+- Streak tracking & progress metrics to keep learners motivated
 
-## Problem
+> **Goal:** Provide a clean, responsive SaaS‑style dashboard that feels professional for a college hackathon demo while preserving all existing functionality.
 
-Students often read notes passively without knowing their weak areas or what they should revise next.
+## ✨ Key Features
+- **Subject Management** – Create, edit, and delete subjects with a colour tag for quick visual identification.
+- **Material Upload** – Upload PDFs; the backend extracts text and creates topics.
+- **Flashcards & Quizzes** – Auto‑generated per‑topic flashcards and MCQ quizzes with scoring.
+- **Progress Dashboard** – Shows overall progress, streaks, and weak‑topic detection.
+- **Data‑Driven Planner** – Generates a personalised study plan based on concept scores.
+- **Theme Selector** – Light, dark, or system‑default themes persisted via `localStorage`.
+- **Responsive Design** – Glass‑card UI, subtle micro‑animations, and mobile‑friendly layouts.
 
-## Solution
+## 🛠️ Tech Stack
+| Layer | Technology |
+|-------|------------|
+| Frontend | React, Vite, JavaScript, vanilla CSS (custom design system) |
+| Backend | Python FastAPI, Uvicorn |
+| Database | SQLite (local storage) |
+| AI Services | Custom AI provider (via `api/` wrapper) |
+| PDF Parsing | PyMuPDF |
+| State Management | Context API (`AppContext`) |
 
-LearnLoop AI converts study material into active learning activities and uses quiz performance to recommend targeted revision.
+## 🚀 Getting Started
+### Prerequisites
+- **Node.js** (>=18) and **npm**
+- **Python 3.11+** with `venv`
+- Git (for cloning the repo)
 
-## Features
+### Installation
+```bash
+# Clone the repo
+git clone https://github.com/Sushmitanaik2703/learnify-ai.git
+cd learnify-ai
 
-- Notes upload
-- Text input
-- AI topic extraction
-- Flashcard generation
-- MCQ quiz generation
-- Quiz scoring
-- Weak topic detection
-- Confidence feedback
-- Personalized revision
-- Targeted retest
+# Frontend setup
+cd frontend
+npm install
+npm run dev   # starts Vite dev server at http://localhost:5173
 
-## Technology Stack
+# Backend setup (in a new terminal)
+cd ../backend
+python -m venv venv
+source venv/Scripts/activate   # on Windows
+pip install -r requirements.txt
+uvicorn main:app --reload   # runs FastAPI at http://localhost:8000
+```
+The frontend proxy is already configured to forward API calls to the backend.
 
-- React + Vite
-- FastAPI
-- SQLite
-- AI API
-- PyMuPDF
+### Building for Production
+```bash
+# Frontend
+npm run build   # creates ./dist
 
-## Main Workflow
+# Backend (optional Dockerfile available)
+# docker build -t learnloop-backend .
+```
 
-1. Upload notes.
-2. Extract topics.
-3. Generate learning activities.
-4. Complete a quiz.
-5. Analyze performance.
-6. Identify weak topics.
-7. Practice targeted revision.
+## 📂 Project Structure
+```
+LearnLoop/
+├─ frontend/          # React + Vite UI
+│  ├─ src/
+│  │  ├─ components/   # UI components (SubjectRow, SubjectList, etc.)
+│  │  ├─ context/      # AppContext (state & helpers)
+│  │  ├─ pages/        # Dashboard, Planner, Progress, etc.
+│  │  └─ index.css     # Design system & theme variables
+│  └─ public/          # static assets
+├─ backend/           # FastAPI server
+│  ├─ api/            # API wrappers for AI, PDF parsing
+│  ├─ models/         # Pydantic models
+│  └─ main.py          # FastAPI entry point
+├─ README.md          # (this file)
+├─ PROJECT_SPEC.md    # original spec
+└─ IMPLEMENTATION_PLAN.md
+```
 
-## Development Guidelines
+## 🎨 UI/UX Highlights
+- **Glass‑card layout** with subtle gradients and shadows.
+- **Colour tags** on subject cards – a small dot next to the subject name reflects the user‑chosen colour.
+- **Dynamic streak calendar** that never marks future dates as completed.
+- **Micro‑animations** on button hovers and progress updates for a premium feel.
 
-- Build incrementally.
-- Test every feature.
-- Keep API keys secure.
-- Use fallback demo data when appropriate.
-- Maintain a simple and reliable architecture.
+## 🐞 Known Issues & Future Work
+- Add unit tests for backend API endpoints.
+- Persist backend data to a real DB (currently using SQLite & localStorage).
+- Enhance AI model prompts for better concept extraction.
 
-## Project Goal
-
-Create a practical, user-friendly, and innovative learning platform for students.
+---
+*This README was autogenerated to reflect the current state of the LearnLoop AI project after recent UI and logic improvements.*
