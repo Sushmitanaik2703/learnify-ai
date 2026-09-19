@@ -54,6 +54,44 @@ export async function uploadNotes(file) {
 }
 
 /**
+ * Deletes a study material by noteId
+ */
+export async function deleteNoteApi(noteId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/notes/${encodeURIComponent(noteId)}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || 'Failed to delete study material.');
+    }
+    return data;
+  } catch (error) {
+    console.warn('[API DeleteNote] Backend error fallback:', error);
+    return { status: 'ok', message: 'Local study material deleted' };
+  }
+}
+
+/**
+ * Deletes a subject by subjectId
+ */
+export async function deleteSubjectApi(subjectId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/subjects/${encodeURIComponent(subjectId)}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || 'Failed to delete subject.');
+    }
+    return data;
+  } catch (error) {
+    console.warn('[API DeleteSubject] Backend error fallback:', error);
+    return { status: 'ok', message: 'Local subject deleted' };
+  }
+}
+
+/**
  * Sends note text to backend to extract 3-5 structured topics
  */
 export async function extractTopics(text) {

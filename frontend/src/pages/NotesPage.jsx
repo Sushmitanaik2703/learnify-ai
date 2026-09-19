@@ -11,12 +11,12 @@ import {
   AlertCircle,
   Sparkles,
   X,
-  Plus,
-  BookOpen
+  Plus
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { uploadNotes, extractTopics } from '../api';
 import CreateSubjectModal from '../components/CreateSubjectModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function NotesPage() {
   const { notes, subjects, addNote, deleteNote, addTopics, setCurrentPage } = useApp();
@@ -42,6 +42,9 @@ export default function NotesPage() {
   const [viewingNote, setViewingNote] = useState(null);
   const [isExtractingTopics, setIsExtractingTopics] = useState(false);
   const [extractMsg, setExtractMsg] = useState(null);
+
+  // Deletion Modal state
+  const [deletingMaterialTarget, setDeletingMaterialTarget] = useState(null);
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -127,6 +130,18 @@ export default function NotesPage() {
       setExtractMsg(`Extraction error: ${err.message}`);
     } finally {
       setIsExtractingTopics(false);
+    }
+  };
+
+  const handleConfirmDeleteMaterial = async () => {
+    if (deletingMaterialTarget) {
+      const name = deletingMaterialTarget.filename;
+      await deleteNote(deletingMaterialTarget.id);
+      if (viewingNote?.id === deletingMaterialTarget.id) {
+        setViewingNote(null);
+      }
+      setUploadSuccess(`Study material "${name}" deleted successfully.`);
+      setTimeout(() => setUploadSuccess(null), 4000);
     }
   };
 
@@ -346,14 +361,11 @@ export default function NotesPage() {
                   </button>
                   <button
                     className="btn-icon-danger"
-                    onClick={() => {
-                      if (window.confirm(`Delete "${note.filename}"?`)) {
-                        deleteNote(note.id);
-                      }
-                    }}
+                    onClick={() => setDeletingMaterialTarget(note)}
                     title="Delete File"
                   >
                     <Trash2 size={16} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>
@@ -397,43 +409,52 @@ export default function NotesPage() {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
               <button
-                className="btn-primary"
-                onClick={() => handleExtractForExistingNote(viewingNote)}
-                disabled={isExtractingTopics}
-                style={{ width: 'auto' }}
+                className="btn-icon-danger"
+                onClick={() => setDeletingMaterialTarget(viewingNote)}
               >
-                {isExtractingTopics ? (
-                  <>
-                    <span className="spinner"></span>
-                    <span>Extracting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    <span>Re-extract Concepts</span>
-                  </>
-                )}
+                <Trash2 size={16} /> Delete Material
               </button>
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setViewingNote(null);
-                  setCurrentPage('topics');
-                }}
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  padding: '0.75rem 1.25rem',
-                  borderRadius: '10px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                View Concepts →
-              </button>
+              
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => handleExtractForExistingNote(viewingNote)}
+                  disabled={isExtractingTopics}
+                  style={{ width: 'auto' }}
+                >
+                  {isExtractingTopics ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Extracting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      <span>Re-extract Concepts</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    setViewingNote(null);
+                    setCurrentPage('topics');
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--border-color)',
+                    padding: '0.75rem 1.25rem',
+                    borderRadius: '10px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  View Concepts →
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -444,6 +465,17 @@ export default function NotesPage() {
         <CreateSubjectModal
           isOpen={isCreateSubjOpen}
           onClose={() => setIsCreateSubjOpen(false)}
+        />
+      )}
+
+      {/* Delete Study Material Confirmation Modal */}
+      {deletingMaterialTarget && (
+        <DeleteConfirmModal
+          isOpen={!!deletingMaterialTarget}
+          onClose={() => setDeletingMaterialTarget(null)}
+          onConfirm={handleConfirmDeleteMaterial}
+          itemType="Study Material"
+          itemName={deletingMaterialTarget.filename}
         />
       )}
     </div>

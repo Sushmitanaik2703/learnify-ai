@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { deleteNoteApi, deleteSubjectApi } from '../api';
 
 const AppContext = createContext();
 
@@ -75,11 +76,17 @@ export function AppProvider({ children }) {
     );
   };
 
-  const deleteSubject = (id) => {
+  const deleteSubject = async (id) => {
+    // 1. Backend API call
+    await deleteSubjectApi(id);
+
+    // 2. Local state & referential integrity update
     setSubjects((prev) => prev.filter((s) => s.id !== id));
-    // Remove related notes and topics or unlink them
     setNotes((prev) => prev.filter((n) => n.subject_id !== id));
     setTopics((prev) => prev.filter((t) => t.subject_id !== id));
+    setQuizzes((prev) => prev.filter((q) => q.subject_id !== id));
+    setFlashcards((prev) => prev.filter((c) => c.subject_id !== id));
+
     if (selectedSubjectId === id) {
       setSelectedSubjectId(null);
       setCurrentPage('dashboard');
@@ -133,13 +140,18 @@ export function AppProvider({ children }) {
     return newNote;
   };
 
-  const deleteNote = (id) => {
+  const deleteNote = async (id) => {
+    // 1. Backend API call
+    await deleteNoteApi(id);
+
+    // 2. Local state & referential integrity update (Parent subject remains intact!)
     setNotes((prev) => prev.filter((n) => n.id !== id));
     setTopics((prev) => prev.filter((t) => t.note_id !== id));
     if (activeNote?.id === id) {
       setActiveNote(null);
     }
   };
+
 
   // 6. Topics State (Concepts)
   const [topics, setTopics] = useState(() => {

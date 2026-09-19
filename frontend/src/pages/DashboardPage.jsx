@@ -11,10 +11,13 @@ import {
   Flame,
   Calendar,
   UploadCloud,
+  Trash2,
+  Edit,
   CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import CreateSubjectModal from '../components/CreateSubjectModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function DashboardPage() {
   const { 
@@ -25,10 +28,25 @@ export default function DashboardPage() {
     flashcards, 
     setSelectedSubjectId, 
     setCurrentPage,
+    deleteSubject,
     streakData
   } = useApp();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState(null);
+
+  // Deletion Modal state
+  const [deletingSubjectTarget, setDeletingSubjectTarget] = useState(null);
+  const [successBanner, setSuccessBanner] = useState(null);
+
+  const handleConfirmDeleteSubject = async () => {
+    if (deletingSubjectTarget) {
+      const name = deletingSubjectTarget.name;
+      await deleteSubject(deletingSubjectTarget.id);
+      setSuccessBanner(`Subject "${name}" and associated records deleted successfully.`);
+      setTimeout(() => setSuccessBanner(null), 4000);
+    }
+  };
 
   return (
     <div className="dashboard-page">
@@ -69,6 +87,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {successBanner && (
+        <div className="alert-box success" style={{ marginBottom: '1.5rem' }}>
+          <CheckCircle2 size={18} />
+          <div>{successBanner}</div>
+        </div>
+      )}
 
       {/* SUBJECT-FIRST SECTION */}
       <section style={{ marginBottom: '3rem' }}>
@@ -116,28 +141,63 @@ export default function DashboardPage() {
                   key={subj.id} 
                   className="glass-card" 
                   style={{ 
-                    cursor: 'pointer', 
                     display: 'flex', 
                     flexDirection: 'column', 
                     justify: 'space-between',
-                    borderTop: '4px solid ' + (subj.color || 'var(--primary)')
-                  }}
-                  onClick={() => {
-                    setSelectedSubjectId(subj.id);
-                    setCurrentPage('subject_detail');
+                    borderTop: '4px solid ' + (subj.color || 'var(--primary)'),
+                    position: 'relative'
                   }}
                 >
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <h4 style={{ fontSize: '1.15rem', fontWeight: 800 }}>{subj.name}</h4>
-                      <span className="file-type-badge">{subjNotes.length} Materials</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <h4 
+                        style={{ fontSize: '1.15rem', fontWeight: 800, cursor: 'pointer' }}
+                        onClick={() => {
+                          setSelectedSubjectId(subj.id);
+                          setCurrentPage('subject_detail');
+                        }}
+                      >
+                        {subj.name}
+                      </h4>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <button
+                          type="button"
+                          className="btn-icon-secondary"
+                          style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingSubject(subj);
+                          }}
+                          title="Edit Subject"
+                        >
+                          <Edit size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon-danger"
+                          style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingSubjectTarget(subj);
+                          }}
+                          title="Delete Subject"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', height: 40, overflow: 'hidden' }}>
                       {subj.description || 'No description provided.'}
                     </p>
                   </div>
 
-                  <div>
+                  <div 
+                    onClick={() => {
+                      setSelectedSubjectId(subj.id);
+                      setCurrentPage('subject_detail');
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
                       <span>Subject Progress</span>
                       <span>{overallProgress}%</span>
@@ -148,16 +208,16 @@ export default function DashboardPage() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textTransform: 'center', textAlign: 'center' }}>
                       <div className="mini-status-box" style={{ padding: '0.4rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjNotes.length}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Files</span>
+                      </div>
+                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
                         <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjTopics.length}</span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Concepts</span>
                       </div>
                       <div className="mini-status-box" style={{ padding: '0.4rem' }}>
                         <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjQuizzes.length}</span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Quizzes</span>
-                      </div>
-                      <div className="mini-status-box" style={{ padding: '0.4rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{subjCards.length}</span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Cards</span>
                       </div>
                     </div>
                   </div>
@@ -253,11 +313,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Create Subject Modal */}
-      {isCreateModalOpen && (
+      {/* Create / Edit Subject Modal */}
+      {(isCreateModalOpen || editingSubject) && (
         <CreateSubjectModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
+          isOpen={isCreateModalOpen || !!editingSubject}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setEditingSubject(null);
+          }}
+          editingSubject={editingSubject}
+        />
+      )}
+
+      {/* Delete Subject Confirmation Modal */}
+      {deletingSubjectTarget && (
+        <DeleteConfirmModal
+          isOpen={!!deletingSubjectTarget}
+          onClose={() => setDeletingSubjectTarget(null)}
+          onConfirm={handleConfirmDeleteSubject}
+          itemType="Subject"
+          itemName={deletingSubjectTarget.name}
+          detailsCount={{
+            materials: notes.filter(n => n.subject_id === deletingSubjectTarget.id).length,
+            concepts: topics.filter(t => t.subject_id === deletingSubjectTarget.id).length
+          }}
         />
       )}
     </div>

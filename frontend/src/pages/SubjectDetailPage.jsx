@@ -11,10 +11,12 @@ import {
   Trash2,
   Edit,
   UploadCloud,
-  Eye
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import CreateSubjectModal from '../components/CreateSubjectModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function SubjectDetailPage() {
   const { 
@@ -27,10 +29,16 @@ export default function SubjectDetailPage() {
     quizzes, 
     flashcards, 
     updateTopicStatus,
-    deleteSubject
+    deleteSubject,
+    deleteNote
   } = useApp();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // Deletion modals state
+  const [deletingSubjectTarget, setDeletingSubjectTarget] = useState(null);
+  const [deletingMaterialTarget, setDeletingMaterialTarget] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null);
 
   const subject = subjects.find((s) => s.id === selectedSubjectId);
 
@@ -58,9 +66,20 @@ export default function SubjectDetailPage() {
     ? Math.round((completedTopics.length / subjectTopics.length) * 100) 
     : 0;
 
-  const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete subject "${subject.name}" and its assigned materials?`)) {
-      deleteSubject(subject.id);
+  const handleConfirmDeleteSubject = async () => {
+    if (deletingSubjectTarget) {
+      await deleteSubject(deletingSubjectTarget.id);
+      setSelectedSubjectId(null);
+      setCurrentPage('dashboard');
+    }
+  };
+
+  const handleConfirmDeleteMaterial = async () => {
+    if (deletingMaterialTarget) {
+      const name = deletingMaterialTarget.filename;
+      await deleteNote(deletingMaterialTarget.id);
+      setStatusMessage(`Study material "${name}" deleted successfully.`);
+      setTimeout(() => setStatusMessage(null), 4000);
     }
   };
 
@@ -98,11 +117,18 @@ export default function SubjectDetailPage() {
           <button className="btn-icon-secondary" onClick={() => setIsEditModalOpen(true)}>
             <Edit size={16} /> Edit
           </button>
-          <button className="btn-icon-danger" onClick={handleDelete}>
-            <Trash2 size={16} /> Delete
+          <button className="btn-icon-danger" onClick={() => setDeletingSubjectTarget(subject)}>
+            <Trash2 size={16} /> Delete Subject
           </button>
         </div>
       </div>
+
+      {statusMessage && (
+        <div className="alert-box success" style={{ marginBottom: '1.5rem' }}>
+          <CheckCircle2 size={18} />
+          <div>{statusMessage}</div>
+        </div>
+      )}
 
       {/* Progress & Quick Stats Card */}
       <div className="glass-card" style={{ marginBottom: '2rem', background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4), var(--bg-card))' }}>
@@ -199,12 +225,21 @@ export default function SubjectDetailPage() {
                   </div>
                 </div>
 
-                <button
-                  className="btn-icon-secondary"
-                  onClick={() => setCurrentPage('notes')}
-                >
-                  <Eye size={15} /> View Material
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn-icon-secondary"
+                    onClick={() => setCurrentPage('notes')}
+                  >
+                    <Eye size={15} /> View
+                  </button>
+                  <button
+                    className="btn-icon-danger"
+                    onClick={() => setDeletingMaterialTarget(note)}
+                    title="Delete Study Material"
+                  >
+                    <Trash2 size={15} /> Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -283,6 +318,32 @@ export default function SubjectDetailPage() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           editingSubject={subject}
+        />
+      )}
+
+      {/* Delete Subject Confirmation Modal */}
+      {deletingSubjectTarget && (
+        <DeleteConfirmModal
+          isOpen={!!deletingSubjectTarget}
+          onClose={() => setDeletingSubjectTarget(null)}
+          onConfirm={handleConfirmDeleteSubject}
+          itemType="Subject"
+          itemName={deletingSubjectTarget.name}
+          detailsCount={{
+            materials: subjectNotes.length,
+            concepts: subjectTopics.length
+          }}
+        />
+      )}
+
+      {/* Delete Study Material Confirmation Modal */}
+      {deletingMaterialTarget && (
+        <DeleteConfirmModal
+          isOpen={!!deletingMaterialTarget}
+          onClose={() => setDeletingMaterialTarget(null)}
+          onConfirm={handleConfirmDeleteMaterial}
+          itemType="Study Material"
+          itemName={deletingMaterialTarget.filename}
         />
       )}
     </div>

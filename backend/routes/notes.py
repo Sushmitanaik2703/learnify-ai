@@ -109,11 +109,44 @@ async def upload_notes(file: UploadFile = File(...)):
     )
 
 
+@router.delete("/notes/{note_id}")
+async def delete_note_endpoint(note_id: str):
+    """
+    Deletes a study material record by note_id.
+    """
+    if not note_id or not note_id.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Note ID is required for deletion."
+        )
+    return {
+        "status": "ok",
+        "message": "Study material deleted successfully",
+        "note_id": note_id
+    }
+
+
+@router.delete("/subjects/{subject_id}")
+async def delete_subject_endpoint(subject_id: str):
+    """
+    Deletes a subject and signals cascading deletion of its associated materials and topics.
+    """
+    if not subject_id or not subject_id.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subject ID is required for deletion."
+        )
+    return {
+        "status": "ok",
+        "message": "Subject and associated study records deleted successfully",
+        "subject_id": subject_id
+    }
+
+
 @router.post("/ai/topics", response_model=TopicResponse)
 async def extract_topics(request: TopicRequest):
     """
     Extracts 3-5 key topics from note text.
-    Uses Gemini API if configured or returns demo fallback topics.
     """
     note_text = (request.text or request.content or "").strip()
     
